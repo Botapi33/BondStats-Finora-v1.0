@@ -1,0 +1,56 @@
+{
+  "name": "bondstats-finora",
+  "version": "1.0.0",
+  "description": "BondStats Finora — AI-powered Financial Intelligence Operating System",
+  "author": "BondStats",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "homepage": "./",
+  "keywords": [
+    "finance",
+    "portfolio",
+    "bonds",
+    "stocks",
+    "etf",
+    "investment",
+    "macro",
+    "economics",
+    "risk",
+    "ai",
+    "research",
+    "dashboard",
+    "pwa"
+  ],
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve .",
+    "preview": "npx serve .",
+    "clean": "echo Clean",
+    "build": "echo Static project",
+    "lint": "echo No linter configured",
+    "test": "echo No tests configured"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bondstats/finora.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bondstats/finora/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Edge versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions"
+  ],
+  "config": {
+    "appName": "BondStats Finora",
+    "offline": true,
+    "theme": "emerald-dark",
+    "pwa": true
+  }
+}
