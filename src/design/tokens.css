@@ -1,0 +1,180 @@
+/*
+=========================================================
+BondStats Finora
+Design Tokens
+Version 1.0.0
+=========================================================
+*/
+
+:root{
+
+/* Core Palette */
+
+--color-black:#020403;
+--color-obsidian:#040806;
+--color-graphite:#07100c;
+--color-surface:#0b1712;
+--color-surface-2:#101f18;
+--color-surface-3:#14271e;
+
+--color-white:#f4fff9;
+--color-muted:#8fad9f;
+--color-soft:#bad2c7;
+
+--color-emerald:#00ff9c;
+--color-emerald-2:#42ffd0;
+--color-emerald-3:#00c875;
+--color-emerald-4:#007a50;
+
+--color-blue:#66c9ff;
+--color-purple:#a78bfa;
+--color-yellow:#ffd166;
+--color-orange:#ff9f43;
+--color-red:#ff5f7a;
+
+/* Semantic */
+
+--success:var(--color-emerald);
+--warning:var(--color-yellow);
+--danger:var(--color-red);
+--info:var(--color-blue);
+
+/* Backgrounds */
+
+--bg-app:
+radial-gradient(circle at 8% -8%,rgba(0,255,156,.16),transparent 28%),
+radial-gradient(circle at 92% 0%,rgba(66,255,208,.10),transparent 24%),
+linear-gradient(135deg,#020403,#07100c 42%,#020403);
+
+--bg-panel:
+linear-gradient(180deg,rgba(16,34,26,.94),rgba(5,13,10,.96));
+
+--bg-card:
+linear-gradient(180deg,rgba(20,43,33,.90),rgba(8,18,14,.94));
+
+--bg-glass:
+rgba(14,32,24,.72);
+
+--bg-input:
+rgba(255,255,255,.035);
+
+/* Text */
+
+--text-primary:var(--color-white);
+--text-secondary:var(--color-soft);
+--text-muted:var(--color-muted);
+--text-inverse:#001109;
+
+/* Borders */
+
+--border-subtle:rgba(255,255,255,.06);
+--border-glass:rgba(0,255,156,.13);
+--border-strong:rgba(0,255,156,.26);
+
+/* Shadows */
+
+--shadow-xs:0 2px 8px rgba(0,0,0,.22);
+--shadow-sm:0 8px 22px rgba(0,0,0,.30);
+--shadow-md:0 18px 46px rgba(0,0,0,.40);
+--shadow-lg:0 30px 90px rgba(0,0,0,.58);
+--shadow-emerald:0 0 42px rgba(0,255,156,.16);
+--shadow-emerald-strong:0 0 72px rgba(0,255,156,.28);
+
+/* Gradients */
+
+--gradient-emerald:linear-gradient(135deg,var(--color-emerald),var(--color-emerald-2));
+--gradient-danger:linear-gradient(135deg,#ff5f7a,#ff8b9e);
+--gradient-warning:linear-gradient(135deg,#ffd166,#ffe08a);
+--gradient-blue:linear-gradient(135deg,#66c9ff,#8fd8ff);
+
+/* Typography */
+
+--font-sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+--font-mono:"SF Mono","Cascadia Code","Roboto Mono",Consolas,monospace;
+
+--font-size-xs:12px;
+--font-size-sm:13px;
+--font-size-md:15px;
+--font-size-lg:18px;
+--font-size-xl:22px;
+--font-size-2xl:30px;
+--font-size-3xl:42px;
+--font-size-4xl:58px;
+
+--line-tight:1.05;
+--line-normal:1.5;
+--line-loose:1.75;
+
+/* Spacing */
+
+--space-1:4px;
+--space-2:8px;
+--space-3:12px;
+--space-4:16px;
+--space-5:20px;
+--space-6:24px;
+--space-7:32px;
+--space-8:40px;
+--space-9:56px;
+--space-10:72px;
+
+/* Radius */
+
+--radius-xs:8px;
+--radius-sm:12px;
+--radius-md:16px;
+--radius-lg:22px;
+--radius-xl:30px;
+--radius-2xl:38px;
+--radius-full:999px;
+
+/* Layout */
+
+--sidebar-width:312px;
+--topbar-height:76px;
+--workspace-max:1800px;
+
+/* Motion */
+
+--ease-out:cubic-bezier(.16,1,.3,1);
+--ease-in-out:cubic-bezier(.65,0,.35,1);
+
+--duration-fast:150ms;
+--duration-normal:260ms;
+--duration-slow:520ms;
+
+/* Z Index */
+
+--z-base:1;
+--z-sidebar:40;
+--z-topbar:50;
+--z-overlay:100;
+--z-command:200;
+--z-modal:300;
+--z-toast:400;
+--z-boot:999;
+
+/* Charts */
+
+--chart-1:#00ff9c;
+--chart-2:#42ffd0;
+--chart-3:#66c9ff;
+--chart-4:#ffd166;
+--chart-5:#ff5f7a;
+--chart-6:#a78bfa;
+--chart-7:#00c875;
+--chart-8:#ff9f43;
+
+}
+
+@media(prefers-reduced-motion:reduce){
+
+:root{
+
+--duration-fast:0ms;
+--duration-normal:0ms;
+--duration-slow:0ms;
+
+}
+
+}
