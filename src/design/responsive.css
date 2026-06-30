@@ -1,0 +1,367 @@
+/*
+=========================================================
+BondStats Finora
+Responsive Layout
+Version 1.0.0
+=========================================================
+*/
+
+/* =====================================================
+   Large Desktop
+===================================================== */
+
+@media (min-width:1800px){
+
+.workspace-root{
+padding:48px;
+}
+
+.grid-4{
+grid-template-columns:repeat(4,minmax(320px,1fr));
+}
+
+}
+
+/* =====================================================
+   Desktop
+===================================================== */
+
+@media (max-width:1440px){
+
+.workspace-root{
+padding:28px;
+}
+
+.grid-4{
+grid-template-columns:repeat(2,minmax(0,1fr));
+}
+
+.search-wrapper{
+min-width:300px;
+}
+
+}
+
+/* =====================================================
+   Tablet
+===================================================== */
+
+@media (max-width:1100px){
+
+.application{
+grid-template-columns:1fr;
+}
+
+.sidebar{
+
+position:fixed;
+
+left:-340px;
+
+top:0;
+
+bottom:0;
+
+width:310px;
+
+transition:left .3s var(--ease-out);
+
+box-shadow:var(--shadow-lg);
+
+}
+
+.sidebar.open{
+left:0;
+}
+
+.workspace{
+width:100%;
+}
+
+.workspace-root{
+padding:22px;
+}
+
+.grid-4,
+.grid-3,
+.grid-2{
+grid-template-columns:1fr;
+}
+
+.topbar{
+
+padding:0 18px;
+
+gap:12px;
+
+}
+
+.topbar-center{
+display:none;
+}
+
+.search-wrapper{
+
+min-width:0;
+
+width:100%;
+
+}
+
+.mobile-menu{
+display:grid;
+}
+
+.profile-info{
+display:none;
+}
+
+}
+
+/* =====================================================
+   Mobile
+===================================================== */
+
+@media (max-width:768px){
+
+:root{
+
+--topbar-height:68px;
+
+}
+
+.workspace-root{
+
+padding:18px;
+
+}
+
+.section-header{
+
+flex-direction:column;
+
+align-items:flex-start;
+
+}
+
+.card{
+
+padding:18px;
+
+border-radius:20px;
+
+}
+
+.metric-card{
+
+min-height:130px;
+
+}
+
+.metric-value{
+
+font-size:2.2rem;
+
+}
+
+.inline{
+
+flex-direction:column;
+
+align-items:stretch;
+
+}
+
+.inline .button{
+
+width:100%;
+
+}
+
+.search-wrapper{
+
+height:48px;
+
+padding:0 14px;
+
+}
+
+.search-input{
+
+font-size:16px;
+
+}
+
+.button{
+
+width:100%;
+
+height:48px;
+
+}
+
+.icon-button{
+
+width:44px;
+
+height:44px;
+
+}
+
+.table-wrapper{
+
+overflow-x:auto;
+
+-webkit-overflow-scrolling:touch;
+
+}
+
+.table{
+
+min-width:760px;
+
+}
+
+.finora-window{
+
+left:10px!important;
+
+right:10px!important;
+
+top:10px!important;
+
+width:auto!important;
+
+max-width:none;
+
+}
+
+.command-panel{
+
+width:calc(100vw - 20px);
+
+border-radius:20px;
+
+}
+
+.health-ring{
+
+width:70px;
+
+height:70px;
+
+font-size:1rem;
+
+}
+
+.health-ring::after{
+
+width:52px;
+
+height:52px;
+
+}
+
+}
+
+/* =====================================================
+   Small Mobile
+===================================================== */
+
+@media (max-width:480px){
+
+.workspace-root{
+
+padding:14px;
+
+}
+
+.section-title{
+
+font-size:1.7rem;
+
+}
+
+.card{
+
+padding:16px;
+
+}
+
+.metric-value{
+
+font-size:2rem;
+
+}
+
+.brand h2{
+
+font-size:1rem;
+
+}
+
+.brand p{
+
+display:none;
+
+}
+
+.sidebar{
+
+width:290px;
+
+}
+
+.boot-logo{
+
+transform:scale(.8);
+
+}
+
+.boot-progress{
+
+width:220px;
+
+}
+
+}
+
+/* =====================================================
+   Landscape Phones
+===================================================== */
+
+@media (max-height:700px){
+
+.sidebar{
+
+overflow-y:auto;
+
+}
+
+.command-list{
+
+max-height:300px;
+
+}
+
+}
+
+/* =====================================================
+   Desktop only
+===================================================== */
+
+@media (min-width:1101px){
+
+.mobile-menu{
+
+display:none;
+
+}
+
+.sidebar{
+
+left:0!important;
+
+}
+
+}
