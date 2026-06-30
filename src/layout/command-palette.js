@@ -2,12 +2,11 @@
 =========================================================
 BondStats Finora
 Command Palette
-Version 1.0.0
+Version 1.0.1
 =========================================================
 */
 
 import AppRouter from "../core/router.js";
-import State from "../core/state.js";
 import Storage from "../core/storage.js";
 import { Events, on, emit } from "../core/events.js";
 
@@ -90,18 +89,13 @@ input.dispatchEvent(new Event("input"));
 }
 ];
 
-class CommandPalette{
+class CommandPaletteManager{
 
 constructor(){
-
 this.root=null;
-
 this.open=false;
-
 this.query="";
-
 this.selectedIndex=0;
-
 }
 
 initialize(){
@@ -109,13 +103,10 @@ initialize(){
 this.root=document.getElementById("command-palette");
 
 if(!this.root){
-
 return;
-
 }
 
 this.render();
-
 this.bind();
 
 on(Events.ROUTE_CHANGE,()=>this.close());
@@ -129,57 +120,29 @@ bind(){
 document.addEventListener("keydown",event=>{
 
 if(!this.open){
-
 return;
-
 }
 
 if(event.key==="Escape"){
-
 event.preventDefault();
-
 this.close();
-
 }
 
 if(event.key==="ArrowDown"){
-
 event.preventDefault();
-
-this.selectedIndex=Math.min(
-
-this.selectedIndex+1,
-
-this.filteredCommands().length-1
-
-);
-
+this.selectedIndex=Math.min(this.selectedIndex+1,this.filteredCommands().length-1);
 this.render();
-
 }
 
 if(event.key==="ArrowUp"){
-
 event.preventDefault();
-
-this.selectedIndex=Math.max(
-
-this.selectedIndex-1,
-
-0
-
-);
-
+this.selectedIndex=Math.max(this.selectedIndex-1,0);
 this.render();
-
 }
 
 if(event.key==="Enter"){
-
 event.preventDefault();
-
 this.executeSelected();
-
 }
 
 });
@@ -187,9 +150,7 @@ this.executeSelected();
 this.root.addEventListener("click",event=>{
 
 if(event.target===this.root){
-
 this.close();
-
 }
 
 });
@@ -197,35 +158,28 @@ this.close();
 }
 
 toggle(){
-
 this.open?this.close():this.show();
-
 }
 
 show(){
 
 this.open=true;
-
 this.query="";
-
 this.selectedIndex=0;
-
 this.root.classList.remove("hidden");
-
 this.render();
 
 requestAnimationFrame(()=>{
-
 this.root.querySelector("input")?.focus();
-
 });
 
 }
 
 close(){
 
-this.open=false;
+if(!this.root)return;
 
+this.open=false;
 this.root.classList.add("hidden");
 
 }
@@ -233,21 +187,15 @@ this.root.classList.add("hidden");
 filteredCommands(){
 
 if(!this.query){
-
 return COMMANDS;
-
 }
 
 const q=this.query.toLowerCase();
 
 return COMMANDS.filter(command=>
-
 command.label.toLowerCase().includes(q)||
-
 command.description.toLowerCase().includes(q)||
-
 command.id.toLowerCase().includes(q)
-
 );
 
 }
@@ -257,17 +205,13 @@ executeSelected(){
 const command=this.filteredCommands()[this.selectedIndex];
 
 if(!command){
-
 return;
-
 }
 
 command.action();
 
 emit(Events.TOAST,{
-
 message:command.label
-
 });
 
 this.close();
@@ -277,9 +221,7 @@ this.close();
 render(){
 
 if(!this.root){
-
 return;
-
 }
 
 const commands=this.filteredCommands();
@@ -321,9 +263,7 @@ data-command="${command.id}">
 `).join(""):`
 
 <div class="command-empty">
-
 No commands found.
-
 </div>
 
 `}
@@ -337,9 +277,7 @@ No commands found.
 this.root.querySelector("input")?.addEventListener("input",event=>{
 
 this.query=event.target.value;
-
 this.selectedIndex=0;
-
 this.render();
 
 });
@@ -349,7 +287,6 @@ this.root.querySelectorAll(".command-item").forEach((button,index)=>{
 button.addEventListener("click",()=>{
 
 this.selectedIndex=index;
-
 this.executeSelected();
 
 });
@@ -363,17 +300,16 @@ this.executeSelected();
 function escapeHTML(value){
 
 return String(value).replace(/[&<>"']/g,character=>({
-
 "&":"&amp;",
 "<":"&lt;",
 ">":"&gt;",
 '"':"&quot;",
 "'":"&#039;"
-
 }[character]));
 
 }
 
-export const CommandPalette=new CommandPalette();
+const CommandPalette=new CommandPaletteManager();
 
+export { CommandPalette };
 export default CommandPalette;
