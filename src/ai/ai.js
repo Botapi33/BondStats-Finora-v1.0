@@ -2,27 +2,81 @@
 =========================================================
 BondStats Finora
 AI Workspace
-Version 1.0.0
+Version 1.1.0
 =========================================================
 */
 
 import State from "../core/state.js";
 import Storage from "../core/storage.js";
 import { toast } from "../components/toast.js";
+import { createSafeId, copyText } from "../utils/compatibility.js";
+
+let root=null;
+let isGenerating=false;
+let stopRequested=false;
+
+const SUGGESTED_PROMPTS=[
+"Explain bond duration",
+"Compare ETFs and mutual funds",
+"Analyze portfolio concentration risk",
+"Explain inflation like I am 5",
+"How do interest rates affect stocks?",
+"Create a recession stress checklist",
+"Explain the yield curve",
+"What is credit risk?"
+];
 
 export function initializeAI(){
 
-const root=document.getElementById("chat-view");
+root=document.getElementById("chat-view");
 
-if(!root)return;
+if(!root){
+return;
+}
+
+ensureChatState();
 
 renderAI();
+
+document.addEventListener("finora-search",event=>{
+
+if(State.getValue("ui.route")==="chat"){
+renderConversationList(event.detail||"");
+}
+
+});
+
+}
+
+function ensureChatState(){
+
+if(!State.getValue("chat")){
+State.set("chat",{conversations:[],currentConversation:null,streaming:false,history:[]});
+}
+
+if(!Array.isArray(State.getValue("chat.conversations"))){
+State.set("chat.conversations",[]);
+}
+
+if(State.getValue("chat.conversations").length===0){
+createConversation(false);
+}
+
+if(!State.getValue("chat.currentConversation")){
+State.set("chat.currentConversation",State.getValue("chat.conversations")[0].id);
+}
+
+Storage.save();
 
 }
 
 function renderAI(){
 
-const root=document.getElementById("chat-view");
+root=document.getElementById("chat-view");
+
+if(!root)return;
+
+ensureChatState();
 
 root.innerHTML=`
 
@@ -33,11 +87,14 @@ root.innerHTML=`
 <div>
 <h1 class="section-title gradient-text">AI Financial Workspace</h1>
 <p class="section-description">
-Research finance, macro, bonds, stocks, ETFs, portfolio management and future markets.
+Research finance, macro, bonds, stocks, ETFs, portfolio management, risk and future markets.
 </p>
 </div>
 
-<button id="new-ai-chat" class="button button-primary">New Conversation</button>
+<div class="inline">
+<button id="new-ai-chat" class="button button-secondary" type="button">New Conversation</button>
+<button id="export-ai-chat" class="button button-secondary" type="button">Export Chat</button>
+</div>
 
 </div>
 
@@ -49,13 +106,29 @@ Research finance, macro, bonds, stocks, ETFs, portfolio management and future ma
 </div>
 
 <div class="card" style="grid-column:span 2">
+
+<div class="inline" style="justify-content:space-between">
 <h3>Finora Intelligence</h3>
+<div class="inline">
+<button id="stop-ai-generation" class="button button-secondary" type="button">Stop</button>
+<button id="regenerate-ai-response" class="button button-secondary" type="button">Regenerate</button>
+</div>
+</div>
 
 <div id="chat-messages" class="stack" style="height:520px;overflow:auto;margin-top:18px"></div>
 
-<div class="inline" style="margin-top:18px">
-<textarea id="chat-input" class="textarea" placeholder="Ask Finora about markets, bonds, portfolios, risk or macro..." style="min-height:90px"></textarea>
-<button id="send-ai-message" class="button button-primary">Send</button>
+<div class="chat-input-area" style="display:flex;gap:12px;margin-top:18px;align-items:flex-end">
+
+<textarea
+id="chat-input"
+class="textarea"
+placeholder="Ask Finora about markets, bonds, portfolios, risk or macro..."
+style="min-height:96px;flex:1"></textarea>
+
+<button id="send-ai-message" class="button button-primary" type="button">
+Send
+</button>
+
 </div>
 
 </div>
@@ -65,8 +138,8 @@ Research finance, macro, bonds, stocks, ETFs, portfolio management and future ma
 <div class="card">
 <h3>Suggested Prompts</h3>
 <div class="inline" style="margin-top:18px">
-${prompts().map(prompt=>`
-<button class="button button-secondary prompt-btn">${prompt}</button>
+${SUGGESTED_PROMPTS.map(prompt=>`
+<button class="button button-secondary prompt-btn" type="button" data-prompt="${escapeHTML(prompt)}">${escapeHTML(prompt)}</button>
 `).join("")}
 </div>
 </div>
@@ -75,35 +148,56 @@ ${prompts().map(prompt=>`
 
 `;
 
-bindAI();
+bindAIEvents();
 
-ensureConversation();
+renderConversationList();
 
 renderMessages();
 
-renderConversations();
-
 }
 
-function bindAI(){
+function bindAIEvents(){
 
 document.getElementById("new-ai-chat")?.addEventListener("click",()=>{
 
-createConversation();
+createConversation(true);
+renderAI();
 
 });
 
-document.getElementById("send-ai-message")?.addEventListener("click",sendMessage);
+document.getElementById("send-ai-message")?.addEventListener("click",()=>{
+
+sendMessage();
+
+});
 
 document.getElementById("chat-input")?.addEventListener("keydown",event=>{
 
 if(event.key==="Enter"&&!event.shiftKey){
 
 event.preventDefault();
-
 sendMessage();
 
 }
+
+});
+
+document.getElementById("stop-ai-generation")?.addEventListener("click",()=>{
+
+stopRequested=true;
+toast("Generation stopped","warning");
+
+});
+
+document.getElementById("regenerate-ai-response")?.addEventListener("click",()=>{
+
+regenerateLastResponse();
+
+});
+
+document.getElementById("export-ai-chat")?.addEventListener("click",()=>{
+
+exportCurrentConversation();
 
 });
 
@@ -111,8 +205,12 @@ document.querySelectorAll(".prompt-btn").forEach(button=>{
 
 button.addEventListener("click",()=>{
 
-document.getElementById("chat-input").value=button.textContent.trim();
+const input=document.getElementById("chat-input");
 
+if(!input)return;
+
+input.value=button.dataset.prompt;
+input.focus();
 sendMessage();
 
 });
@@ -121,325 +219,600 @@ sendMessage();
 
 }
 
-function ensureConversation(){
-
-if(State.getValue("chat.conversations").length===0){
-
-createConversation(false);
-
-}
-
-if(!State.getValue("chat.currentConversation")){
-
-const first=State.getValue("chat.conversations")[0];
-
-State.set("chat.currentConversation",first.id);
-
-}
-
-}
-
-function createConversation(show=true){
+function createConversation(showToast=true){
 
 const conversation={
-
-id:crypto.randomUUID(),
-
+id:createSafeId(),
 title:"New Financial Conversation",
-
 createdAt:new Date().toISOString(),
-
 updatedAt:new Date().toISOString(),
-
 pinned:false,
-
 messages:[
-
 {
 role:"assistant",
-content:"Welcome to BondStats Finora. Ask about bonds, stocks, ETFs, interest rates, inflation, risk, macroeconomics or portfolio construction.",
+content:"Welcome to BondStats Finora. Ask me about bonds, stocks, ETFs, interest rates, inflation, risk, macroeconomics or portfolio construction.",
 createdAt:new Date().toISOString()
 }
-
 ]
-
 };
 
-const conversations=State.getValue("chat.conversations");
+const conversations=State.getValue("chat.conversations")||[];
 
 conversations.unshift(conversation);
 
 State.set("chat.conversations",conversations);
-
 State.set("chat.currentConversation",conversation.id);
 
 Storage.save();
 
-if(show)toast("New conversation created");
+if(showToast){
+toast("New conversation created");
+}
 
-renderMessages();
-
-renderConversations();
+return conversation;
 
 }
 
-function currentConversation(){
+function getCurrentConversation(){
 
-return State.getValue("chat.conversations").find(
+const conversations=State.getValue("chat.conversations")||[];
+const currentId=State.getValue("chat.currentConversation");
 
-conversation=>conversation.id===State.getValue("chat.currentConversation")
-
-);
+return conversations.find(conversation=>conversation.id===currentId)||conversations[0];
 
 }
 
-function sendMessage(){
+function saveConversation(conversation){
+
+const conversations=State.getValue("chat.conversations")||[];
+
+const updated=conversations.map(item=>item.id===conversation.id?conversation:item);
+
+State.set("chat.conversations",updated);
+Storage.save();
+
+}
+
+async function sendMessage(){
+
+if(isGenerating){
+toast("Finora is already generating","warning");
+return;
+}
 
 const input=document.getElementById("chat-input");
 
-if(!input)return;
+if(!input){
+return;
+}
 
 const text=input.value.trim();
 
-if(!text)return;
+if(!text){
+toast("Enter a question first","warning");
+return;
+}
 
-const conversation=currentConversation();
+let conversation=getCurrentConversation();
 
-if(!conversation)return;
+if(!conversation){
+conversation=createConversation(false);
+}
 
 conversation.messages.push({
-
 role:"user",
-
 content:text,
-
 createdAt:new Date().toISOString()
-
 });
 
-conversation.title=text.split(" ").slice(0,8).join(" ");
-
+conversation.title=deriveTitle(text);
 conversation.updatedAt=new Date().toISOString();
 
 input.value="";
 
-Storage.save();
-
+saveConversation(conversation);
+renderConversationList();
 renderMessages();
 
-generateResponse(text);
+await generateResponse(text);
 
 }
 
-function generateResponse(prompt){
+async function generateResponse(prompt){
 
-const conversation=currentConversation();
+let conversation=getCurrentConversation();
 
-const response={
+if(!conversation)return;
 
+isGenerating=true;
+stopRequested=false;
+
+const assistantMessage={
 role:"assistant",
-
-content:createAnswer(prompt),
-
-createdAt:new Date().toISOString()
-
+content:"",
+createdAt:new Date().toISOString(),
+citations:createCitations(prompt)
 };
 
-conversation.messages.push(response);
+conversation.messages.push(assistantMessage);
+saveConversation(conversation);
+renderMessages();
+
+const answer=createFinancialAnswer(prompt);
+
+for(const char of answer){
+
+if(stopRequested){
+break;
+}
+
+assistantMessage.content+=char;
 
 conversation.updatedAt=new Date().toISOString();
 
-Storage.save();
+saveConversation(conversation);
+renderMessages(false);
 
+await sleep(5);
+
+}
+
+isGenerating=false;
+stopRequested=false;
+
+saveConversation(conversation);
+renderConversationList();
 renderMessages();
 
-renderConversations();
+}
+
+function regenerateLastResponse(){
+
+if(isGenerating)return;
+
+const conversation=getCurrentConversation();
+
+if(!conversation)return;
+
+const lastUser=[...conversation.messages].reverse().find(message=>message.role==="user");
+
+if(!lastUser){
+toast("No user message to regenerate","warning");
+return;
+}
+
+for(let i=conversation.messages.length-1;i>=0;i--){
+
+if(conversation.messages[i].role==="assistant"){
+conversation.messages.splice(i,1);
+break;
+}
 
 }
 
-function createAnswer(prompt){
+saveConversation(conversation);
+renderMessages();
 
-const q=prompt.toLowerCase();
-
-let topic="Financial Intelligence";
-
-let body="A strong financial decision connects thesis, risk, time horizon, valuation, liquidity and diversification.";
-
-if(q.includes("bond")||q.includes("yield")||q.includes("duration")){
-
-topic="Fixed Income Intelligence";
-
-body="Bond prices usually move inversely to yields. Duration measures sensitivity to interest-rate changes. Credit quality, maturity, inflation expectations and central bank policy are key drivers.";
+generateResponse(lastUser.content);
 
 }
 
-if(q.includes("stock")||q.includes("equity")){
+function renderConversationList(query=""){
 
-topic="Equity Intelligence";
+const target=document.getElementById("conversation-list");
 
-body="Stocks represent ownership in companies. Earnings, growth expectations, margins, valuation multiples, interest rates and market sentiment drive equity behavior.";
+if(!target)return;
 
-}
+const currentId=State.getValue("chat.currentConversation");
 
-if(q.includes("portfolio")||q.includes("allocation")||q.includes("risk")){
+let conversations=State.getValue("chat.conversations")||[];
 
-topic="Portfolio Intelligence";
+if(query){
 
-body="Portfolio quality depends on allocation discipline, diversification, concentration risk, liquidity, currency exposure, investment horizon and rebalancing behavior.";
+const q=String(query).toLowerCase();
 
-}
-
-if(q.includes("inflation")){
-
-topic="Inflation Intelligence";
-
-body="Inflation reduces purchasing power and can affect rates, bond yields, margins, wages, commodities and real returns.";
+conversations=conversations.filter(conversation=>
+conversation.title.toLowerCase().includes(q)||
+conversation.messages.some(message=>message.content.toLowerCase().includes(q))
+);
 
 }
 
-if(q.includes("ai")||q.includes("artificial intelligence")){
+if(!conversations.length){
 
-topic="AI Finance Intelligence";
-
-body="AI can improve productivity, research speed, automation, risk analysis and personalization while introducing model, data and governance risks.";
-
-}
-
-return `## ${topic}
-
-${body}
-
-### Key Framework
-
-- Identify the main driver.
-- Separate short-term noise from structural forces.
-- Check second-order effects.
-- Compare upside, downside and liquidity.
-- Connect the topic to portfolio role.
-
-### Risk Lens
-
-| Dimension | Question |
-|---|---|
-| Liquidity | Can it be exited efficiently? |
-| Concentration | Is exposure too narrow? |
-| Macro | Is it sensitive to rates, inflation or growth? |
-| Currency | Does FX matter? |
-| Horizon | Does timing match the goal? |
-
-### Finora Insight
-
-Use this as educational analysis only. It is not financial advice.`;
+target.innerHTML=`<p>No conversations found.</p>`;
+return;
 
 }
 
-function renderMessages(){
+target.innerHTML=conversations.map(conversation=>`
+
+<button
+class="button button-secondary conversation-btn ${conversation.id===currentId?"active":""}"
+type="button"
+data-conversation="${conversation.id}">
+${escapeHTML(conversation.title)}
+</button>
+
+`).join("");
+
+target.querySelectorAll("[data-conversation]").forEach(button=>{
+
+button.addEventListener("click",()=>{
+
+State.set("chat.currentConversation",button.dataset.conversation);
+Storage.save();
+renderConversationList();
+renderMessages();
+
+});
+
+});
+
+}
+
+function renderMessages(autoScroll=true){
 
 const target=document.getElementById("chat-messages");
 
-const conversation=currentConversation();
+if(!target)return;
 
-if(!target||!conversation)return;
+const conversation=getCurrentConversation();
 
-target.innerHTML=conversation.messages.map(message=>`
+if(!conversation){
 
-<div class="card">
+target.innerHTML=`<p>No conversation selected.</p>`;
+return;
+
+}
+
+target.innerHTML=conversation.messages.map((message,index)=>`
+
+<div class="card ai-bubble ${message.role}">
 
 <div class="inline" style="justify-content:space-between">
+
 <strong>${message.role==="user"?"You":"Finora"}</strong>
-<button class="button button-secondary copy-message">Copy</button>
+
+<div class="inline">
+<small>${new Date(message.createdAt).toLocaleTimeString()}</small>
+<button class="button button-secondary copy-ai-message" type="button" data-message-index="${index}">
+Copy
+</button>
+</div>
+
 </div>
 
 <div class="ai-message" style="margin-top:14px">
 ${renderMarkdown(message.content)}
 </div>
 
+${message.citations?.length?`
+
+<div class="grid grid-2" style="margin-top:16px">
+
+${message.citations.map(citation=>`
+
+<div class="card">
+<strong>${escapeHTML(citation.title)}</strong>
+<p style="margin-top:8px">${escapeHTML(citation.description)}</p>
+</div>
+
+`).join("")}
+
+</div>
+
+`:""}
+
 </div>
 
 `).join("");
 
-target.querySelectorAll(".copy-message").forEach((button,index)=>{
+target.querySelectorAll("[data-message-index]").forEach(button=>{
 
 button.addEventListener("click",()=>{
 
-navigator.clipboard?.writeText(conversation.messages[index].content);
+const index=Number(button.dataset.messageIndex);
+const message=conversation.messages[index];
 
-toast("Message copied");
+if(!message)return;
+
+copyText(message.content)
+.then(()=>toast("Message copied"))
+.catch(()=>toast("Copy failed","warning"));
 
 });
 
 });
 
+if(autoScroll){
 target.scrollTop=target.scrollHeight;
+}
 
 }
 
-function renderConversations(){
+function createFinancialAnswer(prompt){
 
-const target=document.getElementById("conversation-list");
+const q=prompt.toLowerCase();
+const mode=State.getValue("user.mode")||"professional";
 
-if(!target)return;
+let topic="Financial Intelligence";
+let explanation="A strong financial decision connects thesis, probability, downside risk, liquidity, valuation, time horizon and portfolio role.";
 
-const conversations=State.getValue("chat.conversations");
+if(includesAny(q,["bond","bonds","yield","duration","coupon","fixed income"])){
+topic="Fixed Income Intelligence";
+explanation="Bond prices usually move inversely to yields. Duration measures sensitivity to interest-rate changes. Credit quality, maturity, inflation expectations and central bank policy are key drivers.";
+}
 
-target.innerHTML=conversations.map(conversation=>`
+if(includesAny(q,["stock","stocks","equity","shares","earnings"])){
+topic="Equity Intelligence";
+explanation="Stocks represent ownership in companies. Earnings, growth expectations, margins, valuation multiples, interest rates and market sentiment drive equity behavior.";
+}
 
-<button class="button button-secondary conversation-btn" data-id="${conversation.id}">
-${conversation.title}
-</button>
+if(includesAny(q,["etf","fund","mutual fund","index"])){
+topic="ETF & Fund Intelligence";
+explanation="ETFs and funds package multiple securities into one vehicle. They can improve diversification, simplify exposure and reduce single-security risk.";
+}
 
-`).join("");
+if(includesAny(q,["portfolio","allocation","diversification","risk","rebalance"])){
+topic="Portfolio Intelligence";
+explanation="Portfolio quality depends on allocation discipline, diversification, concentration risk, liquidity, currency exposure, investment horizon and rebalancing behavior.";
+}
 
-target.querySelectorAll(".conversation-btn").forEach(button=>{
+if(includesAny(q,["inflation","cpi","prices"])){
+topic="Inflation Intelligence";
+explanation="Inflation reduces purchasing power and can affect interest rates, bond yields, company margins, wages, commodities and real returns.";
+}
 
-button.addEventListener("click",()=>{
+if(includesAny(q,["central bank","fed","ecb","rates","monetary policy"])){
+topic="Central Bank Intelligence";
+explanation="Central banks influence financial conditions through policy rates, liquidity, balance sheet tools and communication.";
+}
 
-State.set("chat.currentConversation",button.dataset.id);
+if(includesAny(q,["ai","artificial intelligence","technology"])){
+topic="AI Finance Intelligence";
+explanation="AI can improve productivity, research speed, automation, risk analysis and personalization while introducing model, data and governance risks.";
+}
 
-Storage.save();
+let styleLine="Here is a professional financial breakdown.";
 
-renderMessages();
+if(mode==="student"){
+styleLine="I will explain this step by step in simple language.";
+}
 
+if(mode==="investor"){
+styleLine="I will focus on portfolio implications, risk and decision quality.";
+}
+
+if(mode==="research"){
+styleLine="I will structure this as a research note with drivers, risks and open questions.";
+}
+
+if(mode==="eli5"){
+styleLine="Imagine finance as a machine that moves money, risk and time between people.";
+}
+
+return `## ${topic}
+
+${styleLine}
+
+${explanation}
+
+### Key Points
+
+- Identify the main driver: rates, growth, inflation, liquidity, earnings, credit quality or sentiment.
+- Separate short-term market noise from structural financial logic.
+- Consider second-order effects because financial systems are connected.
+- Avoid treating one metric as a complete decision framework.
+- Connect every analysis to portfolio role and risk budget.
+
+### Practical Interpretation
+
+The useful question is not only "what happens next?" but also:
+
+- What exposure do I actually own?
+- What risk am I being paid to take?
+- What could go wrong?
+- What would make the thesis invalid?
+- How does this fit the total portfolio?
+
+### Risk Lens
+
+| Risk Area | What To Watch |
+|---|---|
+| Liquidity | Can the asset be sold or rebalanced efficiently? |
+| Duration | How sensitive is it to interest rates or time horizon? |
+| Concentration | Is too much exposure tied to one sector, region or factor? |
+| Currency | Does FX movement change the outcome? |
+| Macro | Is the asset exposed to inflation, growth or central bank shifts? |
+
+### Finora Insight
+
+A strong financial decision should connect thesis, probability, downside risk, liquidity, time horizon and portfolio role.
+
+This is educational analysis only and does not constitute financial advice.`;
+
+}
+
+function createCitations(prompt){
+
+const q=prompt.toLowerCase();
+
+const citations=[];
+
+if(includesAny(q,["bond","yield","duration","fixed income"])){
+citations.push({
+title:"Fixed Income Framework",
+description:"Duration, yield, credit quality and maturity are core bond risk dimensions."
 });
+}
 
+if(includesAny(q,["portfolio","allocation","risk"])){
+citations.push({
+title:"Portfolio Construction Framework",
+description:"Allocation, diversification, concentration and liquidity define portfolio structure."
 });
+}
+
+if(includesAny(q,["inflation","rates","central bank"])){
+citations.push({
+title:"Macro Framework",
+description:"Inflation, policy rates and liquidity shape financial conditions."
+});
+}
+
+if(!citations.length){
+citations.push({
+title:"Finora Knowledge Base",
+description:"Offline educational finance framework generated locally."
+});
+}
+
+return citations;
 
 }
 
-function renderMarkdown(text){
+function renderMarkdown(markdown){
 
-return String(text)
+let html=escapeHTML(markdown);
 
-.replace(/^## (.*)$/gm,"<h3>$1</h3>")
+html=html.replace(/^### (.*)$/gm,"<h4>$1</h4>");
+html=html.replace(/^## (.*)$/gm,"<h3>$1</h3>");
+html=html.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>");
+html=html.replace(/`([^`]+)`/g,"<code>$1</code>");
+html=html.replace(/^- (.*)$/gm,"<li>$1</li>");
+html=html.replace(/(<li>.*<\/li>)/gs,"<ul>$1</ul>");
+html=html.replace(/\n/g,"<br>");
 
-.replace(/^### (.*)$/gm,"<h4>$1</h4>")
+html=renderSimpleTables(html);
 
-.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>")
-
-.replace(/\n/g,"<br>");
+return html;
 
 }
 
-function prompts(){
+function renderSimpleTables(html){
 
-return[
+if(!html.includes("|")){
+return html;
+}
 
-"Explain bond duration",
+const lines=html.split("<br>");
+const output=[];
+let tableLines=[];
 
-"Compare ETFs and mutual funds",
+for(const line of lines){
 
-"Analyze portfolio concentration risk",
+if(line.includes("|")){
+tableLines.push(line);
+}else{
 
-"Explain inflation like I am 5",
+if(tableLines.length){
+output.push(convertTable(tableLines));
+tableLines=[];
+}
 
-"How do interest rates affect stocks?",
+output.push(line);
 
-"Create a recession stress checklist",
+}
 
-"Explain the yield curve",
+}
 
-"What is credit risk?"
+if(tableLines.length){
+output.push(convertTable(tableLines));
+}
 
-];
+return output.join("<br>");
+
+}
+
+function convertTable(lines){
+
+if(lines.length<3){
+return lines.join("<br>");
+}
+
+const rows=lines.filter(line=>!line.includes("---")).map(line=>
+line.split("|").map(cell=>cell.trim()).filter(Boolean)
+);
+
+if(rows.length<2){
+return lines.join("<br>");
+}
+
+const header=rows[0];
+const body=rows.slice(1);
+
+return`
+<div class="table-wrapper" style="margin-top:12px">
+<table class="table">
+<thead>
+<tr>${header.map(cell=>`<th>${cell}</th>`).join("")}</tr>
+</thead>
+<tbody>
+${body.map(row=>`<tr>${row.map(cell=>`<td>${cell}</td>`).join("")}</tr>`).join("")}
+</tbody>
+</table>
+</div>
+`;
+
+}
+
+function exportCurrentConversation(){
+
+const conversation=getCurrentConversation();
+
+if(!conversation){
+toast("No conversation to export","warning");
+return;
+}
+
+const content=conversation.messages.map(message=>
+`${message.role.toUpperCase()}\n${message.content}`
+).join("\n\n---\n\n");
+
+const blob=new Blob([content],{type:"text/plain;charset=utf-8"});
+const url=URL.createObjectURL(blob);
+const link=document.createElement("a");
+
+link.href=url;
+link.download=`finora-chat-${conversation.id}.txt`;
+
+document.body.appendChild(link);
+link.click();
+link.remove();
+
+URL.revokeObjectURL(url);
+
+toast("Conversation exported");
+
+}
+
+function deriveTitle(text){
+
+return text.split(/\s+/).slice(0,7).join(" ")||"Financial Conversation";
+
+}
+
+function includesAny(text,terms){
+
+return terms.some(term=>text.includes(term));
+
+}
+
+function sleep(ms){
+
+return new Promise(resolve=>setTimeout(resolve,ms));
+
+}
+
+function escapeHTML(value){
+
+return String(value??"").replace(/[&<>"']/g,char=>({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#039;"
+}[char]));
 
 }
